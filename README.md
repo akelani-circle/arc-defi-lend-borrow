@@ -6,17 +6,30 @@ A collateralized lending platform built on [Arc Testnet](https://arc.network/). 
 
 ## Table of Contents
 
+- [Features](#features)
 - [Prerequisites](#prerequisites)
 - [Getting Started](#getting-started)
 - [How It Works](#how-it-works)
 - [Contract Overview](#contract-overview)
 - [Loan Lifecycle](#loan-lifecycle)
 - [Environment Variables](#environment-variables)
+- [Local Database (Supabase)](#local-database-supabase)
 - [Project Structure](#project-structure)
+- [Security & Usage Model](#security--usage-model)
+
+## Features
+
+- **Connect wallet** — MetaMask (or any injected EVM wallet) or a Circle passkey wallet (WebAuthn biometric auth), unified behind a single `useContractWrite` hook.
+- **Deposit collateral** (`depositCollateral`) — deposit cirBTC as collateral.
+- **Borrow** (`takeLoan`) — take a USDC loan up to the collateral factor limit.
+- **Repay** (`repayLoan`) — repay an outstanding USDC loan, partially or fully.
+- **Withdraw** (`withdrawCollateral`) — withdraw cirBTC collateral once a loan is fully repaid.
+- **Transaction history** — every action is persisted to Supabase and shown on the dashboard.
+- **Testnet faucet** — the mock USDC lending token is freely mintable via an in-app faucet button.
 
 ## Prerequisites
 
-- **Node.js v18+** - Install via [nvm](https://github.com/nvm-sh/nvm)
+- **Node.js v20+** - Install via [nvm](https://github.com/nvm-sh/nvm)
 - **A wallet** - either:
   - **MetaMask** (or any injected EVM wallet) - connected to **Arc Testnet** (Chain ID `5042002`), or
   - **Circle Passkey Wallet** - browser-based biometric authentication via WebAuthn (no extension needed). Requires a [Circle developer account](https://console.circle.com/) for the client key and URL.
@@ -130,21 +143,48 @@ A simple collateralized lending protocol with the following interface:
 
 ## Environment Variables
 
-All environment variables live in `.env.local`. The deploy script automatically writes contract addresses after a successful deployment.
+Copy `.env.example` to `.env.local` and fill in the required values. The deploy script automatically writes contract addresses back to this file after a successful deployment:
 
+```bash
+# Deployer wallet private key (for contract deployment)
+PRIVATE_KEY=your_private_key_here
 
-| Variable                               | Purpose                                                                             |
-| -------------------------------------- | ----------------------------------------------------------------------------------- |
-| `PRIVATE_KEY`                          | Deployer wallet private key                                                         |
-| `NEXT_PUBLIC_RPC_URL`                  | Alchemy RPC URL (used by both Hardhat and the frontend)                             |
-| `NEXT_PUBLIC_CIRBTC_ADDRESS`           | cirBTC token address (hardcoded; auto-written by deploy script)                     |
-| `NEXT_PUBLIC_USDC_ADDRESS`             | Deployed mock USDC address (auto-written by deploy script)                          |
-| `NEXT_PUBLIC_LENDING_ADDRESS`          | Deployed LendingBorrowing contract address (auto-written)                           |
-| `NEXT_PUBLIC_CIRCLE_CLIENT_KEY`        | Circle modular wallets client key (for passkey wallet)                              |
-| `NEXT_PUBLIC_CIRCLE_CLIENT_URL`        | Circle modular wallets API URL (for passkey wallet)                                 |
-| `NEXT_PUBLIC_EXPLORER_URL`             | Block explorer base URL used for transaction links (optional)                       |
-| `NEXT_PUBLIC_SUPABASE_URL`             | Local Supabase API URL (default `http://127.0.0.1:54321`)                           |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Local Supabase publishable key (printed by `npm run db:start`; formerly "anon key") |
+# Optional — defaults to the public https://rpc.testnet.arc.network
+NEXT_PUBLIC_RPC_URL=https://your-alchemy-rpc-url-here
+
+# Optional — for contract verification
+ARCSCAN_API_KEY=your_arcscan_api_key_here
+
+# Circle modular wallets (required for passkey wallet support)
+NEXT_PUBLIC_CIRCLE_CLIENT_KEY=your_circle_client_key_here
+NEXT_PUBLIC_CIRCLE_CLIENT_URL=your_circle_client_url_here
+
+# Contract addresses (auto-written by the deploy script)
+NEXT_PUBLIC_USDC_ADDRESS=
+NEXT_PUBLIC_LENDING_ADDRESS=
+NEXT_PUBLIC_CIRBTC_ADDRESS=
+
+# Optional
+NEXT_PUBLIC_EXPLORER_URL=
+
+# Local Supabase (populated by `npm run db:start`)
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+```
+
+| Variable | Scope | Purpose |
+| --- | --- | --- |
+| `PRIVATE_KEY` | Server-side, secret | Deployer wallet private key, used by Hardhat for contract deployment. |
+| `NEXT_PUBLIC_RPC_URL` | Public | Alchemy RPC URL (used by both Hardhat and the frontend). Optional — defaults to the public `https://rpc.testnet.arc.network`, which rate-limits under the app's polling. |
+| `ARCSCAN_API_KEY` | Server-side | Optional. ArcScan API key used by `hardhat-toolbox`'s Etherscan plugin for contract verification. |
+| `NEXT_PUBLIC_CIRCLE_CLIENT_KEY` | Public | Circle modular wallets client key (for the passkey wallet). |
+| `NEXT_PUBLIC_CIRCLE_CLIENT_URL` | Public | Circle modular wallets API URL (for the passkey wallet). |
+| `NEXT_PUBLIC_CIRBTC_ADDRESS` | Public | cirBTC token address (hardcoded; auto-written by the deploy script). |
+| `NEXT_PUBLIC_USDC_ADDRESS` | Public | Deployed mock USDC address (auto-written by the deploy script). |
+| `NEXT_PUBLIC_LENDING_ADDRESS` | Public | Deployed `LendingBorrowing` contract address (auto-written by the deploy script). |
+| `NEXT_PUBLIC_EXPLORER_URL` | Public | Optional. Block explorer base URL used for transaction hash links. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Public | Local Supabase API URL. Defaults to `http://127.0.0.1:54321`. |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public | Local Supabase publishable key, printed by `npm run db:status` (formerly called the "anon key"). |
 
 
 ## Local Database (Supabase)
