@@ -29,7 +29,7 @@ A collateralized lending platform built on [Arc Testnet](https://arc.network/). 
 
 ## Prerequisites
 
-- **Node.js v20+** - Install via [nvm](https://github.com/nvm-sh/nvm)
+- **Node.js v22+ (required by Hardhat 3)** - Install via [nvm](https://github.com/nvm-sh/nvm)
 - **A wallet** - either:
   - **MetaMask** (or any injected EVM wallet) - connected to **Arc Testnet** (Chain ID `5042002`), or
   - **Circle Passkey Wallet** - browser-based biometric authentication via WebAuthn (no extension needed). Requires a [Circle developer account](https://console.circle.com/) for the client key and URL.
@@ -176,7 +176,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 | --- | --- | --- |
 | `PRIVATE_KEY` | Server-side, secret | Deployer wallet private key, used by Hardhat for contract deployment. |
 | `NEXT_PUBLIC_RPC_URL` | Public | Alchemy RPC URL (used by both Hardhat and the frontend). Optional — defaults to the public `https://rpc.testnet.arc.network`, which rate-limits under the app's polling. |
-| `ARCSCAN_API_KEY` | Server-side | Optional. ArcScan API key used by `hardhat-toolbox`'s Etherscan plugin for contract verification. |
+| `ARCSCAN_API_KEY` | Server-side | Optional. ArcScan API key used by `@nomicfoundation/hardhat-verify` for contract verification. |
 | `NEXT_PUBLIC_CIRCLE_CLIENT_KEY` | Public | Circle modular wallets client key (for the passkey wallet). |
 | `NEXT_PUBLIC_CIRCLE_CLIENT_URL` | Public | Circle modular wallets API URL (for the passkey wallet). |
 | `NEXT_PUBLIC_CIRBTC_ADDRESS` | Public | cirBTC token address (hardcoded; auto-written by the deploy script). |

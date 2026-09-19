@@ -16,8 +16,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
+import { defineConfig } from "hardhat/config";
+import hardhatEthers from "@nomicfoundation/hardhat-ethers";
+import hardhatVerify from "@nomicfoundation/hardhat-verify";
 import * as dotenv from "dotenv";
 
 dotenv.config({ path: ".env.local" });
@@ -30,7 +31,8 @@ const accounts: string[] = (() => {
   return [`0x${key}`];
 })();
 
-const config: HardhatUserConfig = {
+export default defineConfig({
+  plugins: [hardhatEthers, hardhatVerify],
   solidity: {
     version: "0.8.28",
     settings: {
@@ -42,26 +44,27 @@ const config: HardhatUserConfig = {
   },
   networks: {
     arcTestnet: {
+      type: "http",
       url: process.env.NEXT_PUBLIC_RPC_URL || "https://rpc.testnet.arc.network",
       accounts,
       chainId: 5042002,
     },
   },
-  etherscan: {
-    apiKey: {
-      arcTestnet: process.env.ARCSCAN_API_KEY || "empty",
+  verify: {
+    etherscan: {
+      apiKey: process.env.ARCSCAN_API_KEY || "empty",
     },
-    customChains: [
-      {
-        network: "arcTestnet",
-        chainId: 5042002,
-        urls: {
-          apiURL: "https://testnet.arcscan.app/api",
-          browserURL: "https://testnet.arcscan.app",
+  },
+  chainDescriptors: {
+    5042002: {
+      name: "Arc Testnet",
+      blockExplorers: {
+        etherscan: {
+          name: "ArcScan",
+          url: "https://testnet.arcscan.app",
+          apiUrl: "https://testnet.arcscan.app/api",
         },
       },
-    ],
+    },
   },
-};
-
-export default config;
+});
