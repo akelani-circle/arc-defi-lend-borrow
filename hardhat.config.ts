@@ -19,6 +19,7 @@
 import { defineConfig } from "hardhat/config";
 import hardhatEthers from "@nomicfoundation/hardhat-ethers";
 import hardhatVerify from "@nomicfoundation/hardhat-verify";
+import hardhatNodeTestRunner from "@nomicfoundation/hardhat-node-test-runner";
 import * as dotenv from "dotenv";
 
 dotenv.config({ path: ".env.local" });
@@ -32,7 +33,7 @@ const accounts: string[] = (() => {
 })();
 
 export default defineConfig({
-  plugins: [hardhatEthers, hardhatVerify],
+  plugins: [hardhatEthers, hardhatVerify, hardhatNodeTestRunner],
   solidity: {
     version: "0.8.28",
     settings: {

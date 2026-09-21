@@ -16,21 +16,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { NextConfig } from "next";
+import { createClient } from "@supabase/supabase-js";
 
-// Baseline hardening. DENY framing stops clickjacking of the transaction buttons.
-// No CSP here on purpose: wallet SDKs load remote scripts and iframes, and a wrong policy
-// breaks sign-in; add one once the deployment's origins are known.
-export const securityHeaders = [
-  { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
-  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-];
+/**
+ * Secret-key client. Bypasses row level security, so it is server-only and used only for
+ * writes no browser may make (the transactions table has no public INSERT policy).
+ * Returns null when Supabase is not configured, as the browser client does.
+ */
+export function createSupabaseAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !secretKey) return null;
 
-const nextConfig: NextConfig = {
-  async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
-  },
-};
-
-export default nextConfig;
+  return createClient(url, secretKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}

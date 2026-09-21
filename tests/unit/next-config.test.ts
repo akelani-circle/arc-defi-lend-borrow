@@ -16,21 +16,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { NextConfig } from "next";
+import { describe, expect, it } from "vitest";
+import nextConfig, { securityHeaders } from "@/next.config";
 
-// Baseline hardening. DENY framing stops clickjacking of the transaction buttons.
-// No CSP here on purpose: wallet SDKs load remote scripts and iframes, and a wrong policy
-// breaks sign-in; add one once the deployment's origins are known.
-export const securityHeaders = [
-  { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
-  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-];
+describe("next.config", () => {
+  it("sends the baseline security headers on every route", async () => {
+    const rules = await nextConfig.headers!();
+    expect(rules).toEqual([{ source: "/:path*", headers: securityHeaders }]);
 
-const nextConfig: NextConfig = {
-  async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
-  },
-};
-
-export default nextConfig;
+    const headers = Object.fromEntries(securityHeaders.map(({ key, value }) => [key, value]));
+    expect(headers["X-Frame-Options"]).toBe("DENY");
+    expect(headers["X-Content-Type-Options"]).toBe("nosniff");
+    expect(headers["Referrer-Policy"]).toBe("strict-origin-when-cross-origin");
+  });
+});

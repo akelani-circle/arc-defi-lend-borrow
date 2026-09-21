@@ -14,6 +14,8 @@ A collateralized lending platform built on [Arc Testnet](https://arc.network/). 
 - [Loan Lifecycle](#loan-lifecycle)
 - [Environment Variables](#environment-variables)
 - [Local Database (Supabase)](#local-database-supabase)
+- [Upgrading](#upgrading)
+- [Testing](#testing)
 - [Project Structure](#project-structure)
 - [Security & Usage Model](#security--usage-model)
 
@@ -185,6 +187,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 | `NEXT_PUBLIC_EXPLORER_URL` | Public | Optional. Block explorer base URL used for transaction hash links. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public | Local Supabase API URL. Defaults to `http://127.0.0.1:54321`. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public | Local Supabase publishable key, printed by `npm run db:status` (formerly called the "anon key"). |
+| `SUPABASE_SECRET_KEY` | Server-side | Local Supabase secret key, printed by `npm run db:status`. Used only by `POST /api/transactions` to record history. Bypasses row level security: never expose it to the browser. |
 
 
 ## Local Database (Supabase)
@@ -198,7 +201,22 @@ npm run db:stop
 npm run db:reset    # re-run migrations, wipe data
 ```
 
-On first run, copy the printed `Project URL` into `NEXT_PUBLIC_SUPABASE_URL` and the `Publishable` key into `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local`. (Supabase recently renamed `anon` → `publishable` and `service_role` → `secret`; only the publishable key is needed here.) The initial migration (`supabase/migrations/*_init_transactions.sql`) creates the `transactions` table used by the history panel on the dashboard.
+On first run, copy the printed `Project URL` into `NEXT_PUBLIC_SUPABASE_URL` and the `Publishable` key into `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local`. (Supabase recently renamed `anon` → `publishable` and `service_role` → `secret`.) Also copy the `Secret` key into `SUPABASE_SECRET_KEY`: the browser can no longer write history itself. The migrations in `supabase/migrations` create the `transactions` table used by the history panel on the dashboard and lock it so only the server can write to it.
+
+## Upgrading
+
+Changes that require action on an existing deployment:
+
+- **Redeploy the contract** (`npm run deploy:lending`). `LendingBorrowing` now rejects a deployment where both tokens are the same (borrowers could otherwise take other people's collateral), guards every entry point against re-entrancy, refuses tokens that charge a transfer fee (they would leave the contract insolvent), and uses two-step ownership transfer (`transferOwnership` then `acceptOwnership`). Existing deployments keep the old behaviour.
+- **Apply the new migration** (`npm run db:start` locally, `npm run supabase -- db push` on a hosted project). The `transactions` table used to accept INSERTs from anyone, with the action and amount chosen by the browser, so anyone could fabricate history for any wallet, or pre-insert a wrong row for a real transaction hash so the genuine one was rejected as a duplicate. Now only the server writes, and reads stay public.
+- **Add `SUPABASE_SECRET_KEY`** to `.env.local` (and to your deployment). History is recorded by `POST /api/transactions`, which takes only a transaction hash and a wallet and reads the action, token and amount from the on-chain receipt. Without the key the app still works; history is simply not recorded.
+- `@types/node` is now `^22`, matching the Node 22+ this repo already requires.
+
+## Testing
+
+- `npm test` runs the unit tests in `tests/unit` (no services needed): the receipt verifier, the history route, and the client helpers.
+- `npm run test:contracts` runs the Solidity tests in `test/` on Hardhat's in-process network: borrowing limits, collateral locking, repayment, ownership, fee-on-transfer tokens and re-entrancy. `contracts/test/` holds the test-only tokens and is never deployed.
+- `npm run test:integration` runs `tests/integration` against the **local** Supabase stack (`npm run db:start` first): who can read and write the history table. It reads connection settings from `.env.local`.
 
 ## Project Structure
 
@@ -253,5 +271,7 @@ This sample application:
 - Mock USDC is freely mintable — not suitable for production use without replacing with a real token
 - cirBTC is an existing token on Arc Testnet and is not mintable via the app
 - No interest rate model — this is an interest-free protocol for demonstration purposes
+- Has no price oracle, interest or liquidation: the contract treats one unit of each token as worth the same. It must never hold real value
+- Records history only from on-chain receipts (the browser cannot write it), but the history is public: anyone can read any wallet's rows
 - Is not intended for production use without modification
 
