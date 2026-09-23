@@ -16,24 +16,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import { describe, expect, it } from "vitest";
+import nextConfig, { securityHeaders } from "@/next.config";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-    // Hardhat build output:
-    "artifacts/**",
-    "cache/**",
-  ]),
-]);
+describe("next.config", () => {
+  it("sends the baseline security headers on every route", async () => {
+    const rules = await nextConfig.headers!();
+    expect(rules).toEqual([{ source: "/:path*", headers: securityHeaders }]);
 
-export default eslintConfig;
+    const headers = Object.fromEntries(securityHeaders.map(({ key, value }) => [key, value]));
+    expect(headers["X-Frame-Options"]).toBe("DENY");
+    expect(headers["X-Content-Type-Options"]).toBe("nosniff");
+    expect(headers["Referrer-Policy"]).toBe("strict-origin-when-cross-origin");
+  });
+});

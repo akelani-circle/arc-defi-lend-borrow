@@ -16,10 +16,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ethers } from "hardhat";
+import { network } from "hardhat";
+import { ethers } from "ethers";
 import * as fs from "fs";
 import * as path from "path";
 
+
+const { ethers: hhEthers } = await network.getOrCreate();
 
 // ─── Configuration ──────────────────────────────────────────────────
 
@@ -63,10 +66,10 @@ function writeEnvFile(envPath: string, vars: Record<string, string>) {
   fs.writeFileSync(envPath, output);
 }
 
-async function clearStuckNonces(deployer: Awaited<ReturnType<typeof ethers.getSigners>>[number]) {
+async function clearStuckNonces(deployer: Awaited<ReturnType<typeof hhEthers.getSigners>>[number]) {
   const [latestNonce, pendingNonce] = await Promise.all([
-    ethers.provider.getTransactionCount(deployer.address, "latest"),
-    ethers.provider.getTransactionCount(deployer.address, "pending"),
+    hhEthers.provider.getTransactionCount(deployer.address, "latest"),
+    hhEthers.provider.getTransactionCount(deployer.address, "pending"),
   ]);
   if (pendingNonce <= latestNonce) return;
 
@@ -75,7 +78,7 @@ async function clearStuckNonces(deployer: Awaited<ReturnType<typeof ethers.getSi
     `Found ${stuckCount} stuck pending tx(s) at nonce ${latestNonce}..${pendingNonce - 1}. Clearing with bumped-gas self-transfers...`
   );
 
-  const feeData = await ethers.provider.getFeeData();
+  const feeData = await hhEthers.provider.getFeeData();
   const baseGasPrice = feeData.gasPrice ?? ethers.parseUnits("1", "gwei");
   const bumpedGasPrice = baseGasPrice * 5n;
 
@@ -95,14 +98,14 @@ async function clearStuckNonces(deployer: Awaited<ReturnType<typeof ethers.getSi
 // ─── Main ───────────────────────────────────────────────────────────
 
 async function main() {
-  const signers = await ethers.getSigners();
+  const signers = await hhEthers.getSigners();
   if (signers.length === 0) {
     throw new Error(
       "No deployer account found. Set PRIVATE_KEY in .env.local (64 hex chars, with or without 0x prefix)."
     );
   }
   const [deployer] = signers;
-  const balance = await ethers.provider.getBalance(deployer.address);
+  const balance = await hhEthers.provider.getBalance(deployer.address);
 
   console.log("=== LendingBorrowing Deployment ===\n");
   console.log("Deployer:", deployer.address);
@@ -114,7 +117,7 @@ async function main() {
 
   await clearStuckNonces(deployer);
 
-  const envPath = path.resolve(__dirname, "../.env.local");
+  const envPath = path.resolve(import.meta.dirname, "../.env.local");
   const cirBtcAddr = CONFIG.cirBtcAddress;
 
   if (!ethers.isAddress(cirBtcAddr)) {
@@ -128,7 +131,7 @@ async function main() {
   console.log("Phase 1: Deploying mock USDC loan token...\n");
 
   console.log("  Deploying TestnetERC20 (USDC)...");
-  const usdcFactory = await ethers.getContractFactory("TestnetERC20");
+  const usdcFactory = await hhEthers.getContractFactory("TestnetERC20");
   const usdc = await usdcFactory.deploy(CONFIG.usdcName, CONFIG.usdcSymbol, CONFIG.usdcDecimals);
   await usdc.waitForDeployment();
   const usdcAddr = await usdc.getAddress();
@@ -146,7 +149,7 @@ async function main() {
 
   console.log("\nPhase 2: Deploying LendingBorrowing contract...\n");
 
-  const lendingFactory = await ethers.getContractFactory("LendingBorrowing");
+  const lendingFactory = await hhEthers.getContractFactory("LendingBorrowing");
   const lending = await lendingFactory.deploy(
     cirBtcAddr,
     usdcAddr,

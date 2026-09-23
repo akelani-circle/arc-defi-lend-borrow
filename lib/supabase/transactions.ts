@@ -36,14 +36,18 @@ export interface TransactionRow {
   created_at: string;
 }
 
+/** What the browser tells the server. Everything else is read from the receipt. */
 export interface InsertTransactionInput {
   tx_hash: string;
   wallet_address: string;
-  action: TxAction;
-  token: TxToken;
-  amount: string;
-  amount_formatted: string;
-  status?: TxStatus;
+}
+
+/** The server cannot see the receipt yet (RPC lag). Safe to retry shortly. */
+export class ReceiptNotVisibleError extends Error {
+  constructor() {
+    super("The transaction is not visible to the server yet");
+    this.name = "ReceiptNotVisibleError";
+  }
 }
 
 export type SortColumn = "created_at" | "amount_formatted";
@@ -63,22 +67,28 @@ export interface ListTransactionsResult {
   total: number;
 }
 
+/**
+ * Asks the server to record a confirmed transaction. The table takes no writes from the
+ * browser: the server reads the action, token and amount from the receipt itself.
+ */
 export async function insertTransaction(input: InsertTransactionInput): Promise<void> {
-  const client = getSupabaseClient();
-  if (!client) return;
-  const { error } = await client.from("transactions").insert({
-    tx_hash: input.tx_hash,
-    wallet_address: input.wallet_address.toLowerCase(),
-    action: input.action,
-    token: input.token,
-    amount: input.amount,
-    amount_formatted: input.amount_formatted,
-    status: input.status ?? "confirmed",
+  const response = await fetch("/api/transactions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ txHash: input.tx_hash, walletAddress: input.wallet_address }),
   });
-  // Ignore duplicate-hash conflicts; surface everything else.
-  if (error && error.code !== "23505") {
-    throw error;
+
+  if (response.status === 409) throw new ReceiptNotVisibleError();
+  // History is a convenience, not part of the transaction. 503 = Supabase not configured.
+  if (!response.ok && response.status !== 503) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error ?? "Could not record the transaction");
   }
+}
+
+/** % and _ are wildcards in LIKE; a search for a hash should match them literally. */
+export function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, "\\$&");
 }
 
 export async function listTransactions(
@@ -96,7 +106,7 @@ export async function listTransactions(
     .eq("wallet_address", params.wallet.toLowerCase());
 
   if (params.search && params.search.trim().length > 0) {
-    query = query.ilike("tx_hash", `%${params.search.trim()}%`);
+    query = query.ilike("tx_hash", `%${escapeLike(params.search.trim())}%`);
   }
 
   query = query

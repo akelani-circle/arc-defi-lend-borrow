@@ -16,24 +16,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
+import { createClient } from "@supabase/supabase-js";
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-    // Hardhat build output:
-    "artifacts/**",
-    "cache/**",
-  ]),
-]);
+/**
+ * Secret-key client. Bypasses row level security, so it is server-only and used only for
+ * writes no browser may make (the transactions table has no public INSERT policy).
+ * Returns null when Supabase is not configured, as the browser client does.
+ */
+export function createSupabaseAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !secretKey) return null;
 
-export default eslintConfig;
+  return createClient(url, secretKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}

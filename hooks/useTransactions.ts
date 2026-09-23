@@ -20,6 +20,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ReceiptNotVisibleError,
   insertTransaction,
   listTransactions,
   type InsertTransactionInput,
@@ -47,6 +48,9 @@ export function useLogTransaction() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: InsertTransactionInput) => insertTransaction(input),
+    // The server reads the receipt from its own RPC, which can lag the wallet's.
+    retry: (failureCount, error) => error instanceof ReceiptNotVisibleError && failureCount < 6,
+    retryDelay: 3_000,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transactions"] });
     },
