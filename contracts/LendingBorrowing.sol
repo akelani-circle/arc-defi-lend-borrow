@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -48,7 +48,7 @@ contract LendingBorrowing is Ownable {
         address _collateralToken,
         address _lendingToken,
         uint256 _collateralFactor
-    ) {
+    ) Ownable(msg.sender) {
         require(_collateralToken != address(0), "Invalid collateral token");
         require(_lendingToken != address(0), "Invalid lending token");
         require(_collateralFactor > 0 && _collateralFactor <= 100, "Factor must be 1-100");
