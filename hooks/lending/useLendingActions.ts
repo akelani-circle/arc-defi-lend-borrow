@@ -25,41 +25,22 @@ import { ERC20_ABI, TESTNET_ERC20_ABI, LENDING_ABI } from "@/lib/contracts";
 import { LENDING_ADDRESS, USDC_ADDRESS, CIRBTC_ADDRESS, COLLATERAL_DECIMALS, LOAN_DECIMALS } from "@/lib/contracts/addresses";
 import { useWallet } from "@/contexts/WalletContext";
 import { useLogTransaction } from "@/hooks/useTransactions";
-import type { TxAction, TxToken } from "@/lib/supabase/transactions";
 
 // cirBTC is obtained from Circle's faucet (https://faucet.circle.com) — not
 // mintable by this app. See README § Security & Usage Model.
 
-interface PendingLog {
-  action: TxAction;
-  token: TxToken;
-  amountRaw: bigint;
-  amountFormatted: string;
-}
-
-function useLogOnConfirm(
-  isSuccess: boolean,
-  hash: `0x${string}` | undefined,
-  pending: { current: PendingLog | null },
-) {
+function useLogOnConfirm(isSuccess: boolean, hash: `0x${string}` | undefined) {
   const { address } = useWallet();
   const { mutate } = useLogTransaction();
   const loggedHash = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isSuccess || !hash || !address || !pending.current) return;
+    if (!isSuccess || !hash || !address) return;
     if (loggedHash.current === hash) return;
     loggedHash.current = hash;
-    const p = pending.current;
-    mutate({
-      tx_hash: hash,
-      wallet_address: address,
-      action: p.action,
-      token: p.token,
-      amount: p.amountRaw.toString(),
-      amount_formatted: p.amountFormatted,
-    });
-  }, [isSuccess, hash, address, mutate, pending]);
+    // Only the hash and wallet go to the server; it reads the rest from the receipt.
+    mutate({ tx_hash: hash, wallet_address: address });
+  }, [isSuccess, hash, address, mutate]);
 }
 
 // ─── USDC helpers (loan token) ───────────────────────────────────────────────
@@ -67,13 +48,11 @@ function useLogOnConfirm(
 export function useMintUsdc() {
   const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
   const { address } = useWallet();
-  const pending = useRef<PendingLog | null>(null);
-  useLogOnConfirm(isSuccess, hash, pending);
+  useLogOnConfirm(isSuccess, hash);
 
   const mint = (amount: string) => {
     if (!address) return;
     const raw = parseUnits(amount, LOAN_DECIMALS);
-    pending.current = { action: "mint_usdc", token: "USDC", amountRaw: raw, amountFormatted: amount };
     write({
       address: USDC_ADDRESS,
       abi: TESTNET_ERC20_ABI,
@@ -121,12 +100,10 @@ export function useApproveUsdcForLending() {
 
 export function useDepositCollateral() {
   const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
-  const pending = useRef<PendingLog | null>(null);
-  useLogOnConfirm(isSuccess, hash, pending);
+  useLogOnConfirm(isSuccess, hash);
 
   const deposit = (amount: string) => {
     const raw = parseUnits(amount, COLLATERAL_DECIMALS);
-    pending.current = { action: "deposit", token: "cirBTC", amountRaw: raw, amountFormatted: amount };
     write({
       address: LENDING_ADDRESS,
       abi: LENDING_ABI,
@@ -140,12 +117,10 @@ export function useDepositCollateral() {
 
 export function useWithdrawCollateral() {
   const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
-  const pending = useRef<PendingLog | null>(null);
-  useLogOnConfirm(isSuccess, hash, pending);
+  useLogOnConfirm(isSuccess, hash);
 
   const withdraw = (amount: string) => {
     const raw = parseUnits(amount, COLLATERAL_DECIMALS);
-    pending.current = { action: "withdraw", token: "cirBTC", amountRaw: raw, amountFormatted: amount };
     write({
       address: LENDING_ADDRESS,
       abi: LENDING_ABI,
@@ -159,12 +134,10 @@ export function useWithdrawCollateral() {
 
 export function useTakeLoan() {
   const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
-  const pending = useRef<PendingLog | null>(null);
-  useLogOnConfirm(isSuccess, hash, pending);
+  useLogOnConfirm(isSuccess, hash);
 
   const borrow = (amount: string) => {
     const raw = parseUnits(amount, LOAN_DECIMALS);
-    pending.current = { action: "borrow", token: "USDC", amountRaw: raw, amountFormatted: amount };
     write({
       address: LENDING_ADDRESS,
       abi: LENDING_ABI,
@@ -178,12 +151,10 @@ export function useTakeLoan() {
 
 export function useRepayLoan() {
   const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
-  const pending = useRef<PendingLog | null>(null);
-  useLogOnConfirm(isSuccess, hash, pending);
+  useLogOnConfirm(isSuccess, hash);
 
   const repay = (amount: string) => {
     const raw = parseUnits(amount, LOAN_DECIMALS);
-    pending.current = { action: "repay", token: "USDC", amountRaw: raw, amountFormatted: amount };
     write({
       address: LENDING_ADDRESS,
       abi: LENDING_ABI,

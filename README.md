@@ -12,11 +12,13 @@ A collateralized lending platform built on [Arc Testnet](https://arc.network/). 
 - [Contract Overview](#contract-overview)
 - [Loan Lifecycle](#loan-lifecycle)
 - [Environment Variables](#environment-variables)
+- [Testing](#testing)
 - [Project Structure](#project-structure)
+- [Security & Usage Model](#security--usage-model)
 
 ## Prerequisites
 
-- **Node.js v18+** - Install via [nvm](https://github.com/nvm-sh/nvm)
+- **Node.js v22+ (required by Hardhat 3)** - Install via [nvm](https://github.com/nvm-sh/nvm)
 - **A wallet** - either:
   - **MetaMask** (or any injected EVM wallet) - connected to **Arc Testnet** (Chain ID `5042002`), or
   - **Circle Passkey Wallet** - browser-based biometric authentication via WebAuthn (no extension needed). Requires a [Circle developer account](https://console.circle.com/) for the client key and URL.
@@ -145,6 +147,7 @@ All environment variables live in `.env.local`. The deploy script automatically 
 | `NEXT_PUBLIC_EXPLORER_URL`             | Block explorer base URL used for transaction links (optional)                       |
 | `NEXT_PUBLIC_SUPABASE_URL`             | Local Supabase API URL (default `http://127.0.0.1:54321`)                           |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Local Supabase publishable key (printed by `npm run db:start`; formerly "anon key") |
+| `SUPABASE_SECRET_KEY`                  | Local Supabase secret key (printed by `npm run db:status`). Used only by `POST /api/transactions` to record history; never expose it to the browser |
 
 
 ## Local Database (Supabase)
@@ -158,7 +161,13 @@ npm run db:stop
 npm run db:reset    # re-run migrations, wipe data
 ```
 
-On first run, copy the printed `Project URL` into `NEXT_PUBLIC_SUPABASE_URL` and the `Publishable` key into `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local`. (Supabase recently renamed `anon` → `publishable` and `service_role` → `secret`; only the publishable key is needed here.) The initial migration (`supabase/migrations/*_init_transactions.sql`) creates the `transactions` table used by the history panel on the dashboard.
+On first run, copy the printed `Project URL` into `NEXT_PUBLIC_SUPABASE_URL` and the `Publishable` key into `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local`. (Supabase recently renamed `anon` → `publishable` and `service_role` → `secret`; only the publishable key is needed here.) Also copy the `Secret` key into `SUPABASE_SECRET_KEY`: the browser can no longer write history itself. The migrations in `supabase/migrations` create the `transactions` table used by the history panel on the dashboard and lock it so only the server can write to it.
+
+## Testing
+
+- `npm test` runs the unit tests in `tests/unit` (no services needed).
+- `npm run test:contracts` runs the Solidity tests in `test/` on Hardhat's in-process network.
+- `npm run test:integration` runs `tests/integration` against the local Supabase stack (`npm run db:start` first).
 
 ## Project Structure
 
@@ -213,5 +222,11 @@ This sample application:
 - Mock USDC is freely mintable — not suitable for production use without replacing with a real token
 - cirBTC is an existing token on Arc Testnet and is not mintable via the app
 - No interest rate model — this is an interest-free protocol for demonstration purposes
+- Has no price oracle or liquidation: the contract treats one unit of each token as worth the same, so it must never hold real value
+- Records history only from on-chain receipts (the browser cannot write it)
 - Is not intended for production use without modification
 
+
+## Legal
+
+Sample apps provided for demonstration and educational purposes only, intended for Arc testnet use only, and not production-ready. See [Arc.io](https://arc.io) for more.
