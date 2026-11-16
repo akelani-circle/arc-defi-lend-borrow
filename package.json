@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Lending and borrowing demo on Arc Testnet \u2014 deposit USDC as collateral and borrow ARCT",
+  "description": "Lending and borrowing demo on Arc Testnet — deposit cirBTC as collateral and borrow USDC",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -28,7 +28,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.46.0",
-    "next": "16.3.5",
+    "next": "16.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "tailwind-merge": "^3.5.0",
