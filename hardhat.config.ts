@@ -46,7 +46,7 @@ export default defineConfig({
   networks: {
     arcTestnet: {
       type: "http",
-      url: process.env.NEXT_PUBLIC_RPC_URL || "https://rpc.testnet.arc.network",
+      url: process.env.NEXT_PUBLIC_RPC_URL || "https://rpc.testnet.arc.io",
       accounts,
       chainId: 5042002,
     },
