@@ -19,7 +19,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { useChainId, useReadContract } from "wagmi";
+import { useConnection, useReadContract, useSwitchChain } from "wagmi";
 import { formatUnits } from "viem";
 import { arcTestnet, LIVE_STATE_REFETCH_INTERVAL } from "@/lib/wagmi";
 import { useWallet } from "@/contexts/WalletContext";
@@ -31,13 +31,10 @@ import { useMintUsdc } from "@/hooks/lending";
 import { CopyableText } from "./CopyableText";
 import { ConnectDialog } from "./ConnectDialog";
 
-// Circle modular (passkey) wallets can't use the in-app allocateTo faucet — the
-// mint is a gas-sponsored userOp and self-minting the mock loan token isn't the
-// supported path. Send those users to Circle's **gas** faucet instead.
-//
-// ⚠️ This faucet dispenses native USDC (gas), NOT the mock USDC loan token
-// (USDC_ADDRESS) displayed as the `USDC:` balance in the UI. Do not conflate
-// the two — see README § Prerequisites.
+// Real testnet cirBTC (the collateral) comes from Circle's faucet: pick Arc Testnet
+// and cirBTC. The mock USDC loan token is minted in-app by the "Faucet" button.
+// The USDC that Circle's faucet sends is native gas USDC, not this mock loan token
+// (USDC_ADDRESS) shown as the `USDC:` balance. See README § Prerequisites.
 const CIRCLE_FAUCET_URL = "https://faucet.circle.com/";
 
 // Format a token balance for display: trims trailing zeros (no "50000.000000")
@@ -52,7 +49,10 @@ function fmtBalance(value: bigint, decimals: number, maxFractionDigits: number):
 
 export function ConnectWallet() {
   const { address, isConnected, walletType, disconnect } = useWallet();
-  const chainId = useChainId();
+  // The connection's chain, not useChainId(): wagmi only syncs useChainId() to chains
+  // in its config, so a wallet on any other network would still read as Arc Testnet.
+  const { chainId } = useConnection();
+  const { mutate: switchChain, isPending: isSwitchingChain } = useSwitchChain();
   const mounted = useSyncExternalStore(() => () => { }, () => true, () => false);
   const queryClient = useQueryClient();
 
@@ -111,6 +111,15 @@ export function ConnectWallet() {
         ) : formattedCirBtcBalance !== null ? (
           <span className="font-medium">{formattedCirBtcBalance}</span>
         ) : null}
+        <a
+          href={CIRCLE_FAUCET_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded px-2 py-0.5 ml-1 text-xs font-medium transition-colors bg-orange-600/15 text-orange-500 hover:bg-orange-600/25"
+          title="Get testnet cirBTC from Circle's faucet: choose Arc Testnet and cirBTC (opens in a new tab)"
+        >
+          Get cirBTC ↗
+        </a>
       </span>
       <span className="text-muted-foreground/40 hidden sm:inline">|</span>
       <span className="inline-flex items-center">
@@ -120,35 +129,24 @@ export function ConnectWallet() {
         ) : formattedUsdcBalance !== null ? (
           <span className="font-medium">{formattedUsdcBalance}</span>
         ) : null}
-        {walletType === "circle" ? (
-          <a
-            href={CIRCLE_FAUCET_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded px-2 py-0.5 ml-1 text-xs font-medium transition-colors bg-green-600/15 text-green-500 hover:bg-green-600/25"
-            title="Get native USDC (gas) from Circle's faucet. Note: this is not the mock USDC loan token used by this app. (opens in a new tab)"
-          >
-            Gas faucet ↗
-          </a>
-        ) : (
-          <button
-            onClick={() => mintUsdc.mint("1000")}
-            disabled={mintUsdc.isPending || mintUsdc.isConfirming}
-            className={`rounded px-2 py-0.5 ml-1 text-xs font-medium transition-colors disabled:opacity-50 ${mintUsdc.error
-              ? "bg-red-600/15 text-red-500 hover:bg-red-600/25"
-              : "bg-green-600/15 text-green-500 hover:bg-green-600/25"
-              }`}
-            title={mintUsdc.error ? `Error: ${mintUsdc.error.message}` : "Mint 1000 USDC test tokens"}
-          >
-            {mintUsdc.isPending || mintUsdc.isConfirming
-              ? "Minting..."
-              : mintUsdc.error
-                ? "Mint failed"
-                : mintUsdc.isSuccess
-                  ? "Minted!"
-                  : "Faucet"}
-          </button>
-        )}
+        {/* Works for both wallets: a passkey wallet sends the mint as a sponsored UserOp. */}
+        <button
+          onClick={() => mintUsdc.mint("1000")}
+          disabled={mintUsdc.isPending || mintUsdc.isConfirming || mintUsdc.isSubmitted}
+          className={`rounded px-2 py-0.5 ml-1 text-xs font-medium transition-colors disabled:opacity-50 ${mintUsdc.error
+            ? "bg-red-600/15 text-red-500 hover:bg-red-600/25"
+            : "bg-green-600/15 text-green-500 hover:bg-green-600/25"
+            }`}
+          title={mintUsdc.error ? `Error: ${mintUsdc.error.message}` : "Mint 1000 test USDC (the loan token)"}
+        >
+          {mintUsdc.isPending || mintUsdc.isConfirming || mintUsdc.isSubmitted
+            ? "Minting..."
+            : mintUsdc.error
+              ? "Mint failed"
+              : mintUsdc.isSuccess
+                ? "Minted!"
+                : "Faucet"}
+        </button>
       </span>
       <span className="text-muted-foreground/40 hidden sm:inline">|</span>
       <span>
@@ -165,6 +163,14 @@ export function ConnectWallet() {
         <>
           <span className="text-muted-foreground/40 hidden sm:inline">|</span>
           <span className="text-destructive font-medium">Wrong Network</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => switchChain({ chainId: arcTestnet.id })}
+            disabled={isSwitchingChain}
+          >
+            {isSwitchingChain ? "Switching…" : "Switch to Arc Testnet"}
+          </Button>
         </>
       )}
       <Button variant="outline" size="sm" onClick={disconnect}>

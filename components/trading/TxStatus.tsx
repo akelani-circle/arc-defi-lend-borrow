@@ -19,9 +19,7 @@
 "use client";
 
 import { parseTxError } from "@/lib/errors";
-
-const EXPLORER_BASE =
-  process.env.NEXT_PUBLIC_EXPLORER_URL || "https://explorer.testnet.arc.io";
+import { EXPLORER_URL } from "@/lib/wagmi";
 
 export interface TxStatusProps {
   isPending: boolean;
@@ -57,16 +55,14 @@ export function TxStatus({
     return (
       <p className="text-xs text-green-500">
         Success!{" "}
-        {EXPLORER_BASE ? (
-          <a
-            href={`${EXPLORER_BASE.replace(/\/$/, "")}/tx/${hash}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline"
-          >
-            View tx
-          </a>
-        ) : null}
+        <a
+          href={`${EXPLORER_URL}/tx/${hash}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
+          View tx
+        </a>
       </p>
     );
   }
@@ -78,6 +74,17 @@ export function TxStatus({
       <div className="rounded-md bg-red-500/10 px-2.5 py-1.5 text-xs text-red-500">
         <p className="font-medium">{title}</p>
         {detail && <p className="mt-0.5 text-red-400">{detail}</p>}
+        {/* A reverted transaction was still mined, so it has a hash worth inspecting. */}
+        {hash && (
+          <a
+            href={`${EXPLORER_URL}/tx/${hash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-0.5 inline-block underline"
+          >
+            View tx
+          </a>
+        )}
       </div>
     );
   }

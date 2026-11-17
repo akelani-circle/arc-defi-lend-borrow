@@ -62,8 +62,8 @@ export default defineConfig({
       blockExplorers: {
         etherscan: {
           name: "ArcScan",
-          url: "https://testnet.arcscan.app",
-          apiUrl: "https://testnet.arcscan.app/api",
+          url: "https://explorer.testnet.arc.io",
+          apiUrl: "https://explorer.testnet.arc.io/api",
         },
       },
     },

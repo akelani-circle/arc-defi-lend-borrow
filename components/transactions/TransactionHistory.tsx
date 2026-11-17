@@ -48,10 +48,10 @@ import type {
   TxAction,
 } from "@/lib/supabase/transactions";
 import { useTransactionsQuery } from "@/hooks/useTransactions";
+import { EXPLORER_URL } from "@/lib/wagmi";
 import { SortableHeader } from "./SortableHeader";
 
 const PAGE_SIZES = [10, 20, 30] as const;
-const EXPLORER_BASE = process.env.NEXT_PUBLIC_EXPLORER_URL;
 
 interface TransactionHistoryProps {
   wallet: string;
@@ -297,19 +297,15 @@ function TransactionTableRow({ row }: { row: TransactionRow }) {
       <TableCell className="text-right font-mono tabular-nums">{row.amount_formatted}</TableCell>
       <TableCell>
         <div className="flex items-center gap-1.5 font-mono text-xs">
-          {EXPLORER_BASE ? (
-            <a
-              href={`${EXPLORER_BASE.replace(/\/$/, "")}/tx/${row.tx_hash}`}
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-foreground hover:underline transition-colors"
-              title="Open in explorer"
-            >
-              {short}
-            </a>
-          ) : (
-            <span>{short}</span>
-          )}
+          <a
+            href={`${EXPLORER_URL}/tx/${row.tx_hash}`}
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-foreground hover:underline transition-colors"
+            title="Open in explorer"
+          >
+            {short}
+          </a>
           <button
             type="button"
             onClick={handleCopy}

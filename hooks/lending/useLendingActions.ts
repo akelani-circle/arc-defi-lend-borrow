@@ -45,8 +45,8 @@ function useLogOnConfirm(isSuccess: boolean, hash: `0x${string}` | undefined) {
 
 // ─── USDC helpers (loan token) ───────────────────────────────────────────────
 
-export function useMintUsdc() {
-  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
+export function useMintUsdc(onSuccess?: () => void) {
+  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite(onSuccess);
   const { address } = useWallet();
   useLogOnConfirm(isSuccess, hash);
 
@@ -64,8 +64,8 @@ export function useMintUsdc() {
   return { mint, isPending, isConfirming, isSubmitted, isSuccess, error, hash };
 }
 
-export function useApproveCirBtc() {
-  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
+export function useApproveCirBtc(onSuccess?: () => void) {
+  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite(onSuccess);
 
   const approve = (amount: bigint) => {
     write({
@@ -81,8 +81,8 @@ export function useApproveCirBtc() {
 
 // ─── USDC helpers (for repaying loans) ───────────────────────────────────────
 
-export function useApproveUsdcForLending() {
-  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
+export function useApproveUsdcForLending(onSuccess?: () => void) {
+  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite(onSuccess);
 
   const approve = (amount: bigint) => {
     write({
@@ -98,8 +98,8 @@ export function useApproveUsdcForLending() {
 
 // ─── Lending contract actions ─────────────────────────────────────────────────
 
-export function useDepositCollateral() {
-  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
+export function useDepositCollateral(onSuccess?: () => void) {
+  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite(onSuccess);
   useLogOnConfirm(isSuccess, hash);
 
   const deposit = (amount: string) => {
@@ -115,8 +115,8 @@ export function useDepositCollateral() {
   return { deposit, isPending, isConfirming, isSubmitted, isSuccess, error, hash };
 }
 
-export function useWithdrawCollateral() {
-  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
+export function useWithdrawCollateral(onSuccess?: () => void) {
+  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite(onSuccess);
   useLogOnConfirm(isSuccess, hash);
 
   const withdraw = (amount: string) => {
@@ -132,8 +132,8 @@ export function useWithdrawCollateral() {
   return { withdraw, isPending, isConfirming, isSubmitted, isSuccess, error, hash };
 }
 
-export function useTakeLoan() {
-  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
+export function useTakeLoan(onSuccess?: () => void) {
+  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite(onSuccess);
   useLogOnConfirm(isSuccess, hash);
 
   const borrow = (amount: string) => {
@@ -149,8 +149,8 @@ export function useTakeLoan() {
   return { borrow, isPending, isConfirming, isSubmitted, isSuccess, error, hash };
 }
 
-export function useRepayLoan() {
-  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite();
+export function useRepayLoan(onSuccess?: () => void) {
+  const { write, isPending, isConfirming, isSubmitted, isSuccess, error, hash } = useContractWrite(onSuccess);
   useLogOnConfirm(isSuccess, hash);
 
   const repay = (amount: string) => {

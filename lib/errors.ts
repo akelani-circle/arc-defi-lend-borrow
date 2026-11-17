@@ -60,7 +60,7 @@ export function parseTxError(error: Error): { title: string; detail?: string } {
     const reason = reasonMatch?.[1]?.trim();
     return {
       title: "Transaction failed",
-      detail: reason || "The contract rejected this transaction. The market state may have changed.",
+      detail: reason || "The contract rejected this transaction.",
     };
   }
 

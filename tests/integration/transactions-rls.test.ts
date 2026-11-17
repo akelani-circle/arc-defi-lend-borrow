@@ -97,6 +97,23 @@ describe("transactions: public reads still work", () => {
   });
 });
 
+describe("transactions: sorting", () => {
+  it("sorts by amount as a number (the history used to sort the text column: 10 before 9)", async () => {
+    const owner = wallet();
+    const ten = row({ wallet_address: owner, action: "borrow", amount: "1000000000", amount_formatted: "10" });
+    const nine = row({ wallet_address: owner, action: "repay", amount: "900000000", amount_formatted: "9" });
+    await service.from("transactions").insert([ten, nine]);
+
+    const { data, error } = await anon
+      .from("transactions")
+      .select("amount_formatted")
+      .eq("wallet_address", owner)
+      .order("amount", { ascending: true });
+    expect(error).toBeNull();
+    expect(data).toEqual([{ amount_formatted: "9" }, { amount_formatted: "10" }]);
+  });
+});
+
 describe("transactions: server-side writes", () => {
   it("is idempotent per (hash, wallet, action), which is what the API upserts on", async () => {
     const real = row();

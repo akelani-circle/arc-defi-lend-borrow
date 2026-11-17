@@ -20,6 +20,7 @@ import { network } from "hardhat";
 import { ethers } from "ethers";
 import * as fs from "fs";
 import * as path from "path";
+import { upsertEnv } from "./env-file.js";
 
 
 const { ethers: hhEthers } = await network.getOrCreate();
@@ -48,22 +49,8 @@ const CONFIG = {
 // ─── Helpers ────────────────────────────────────────────────────────
 
 function writeEnvFile(envPath: string, vars: Record<string, string>) {
-  const envContent: Record<string, string> = {};
-  if (fs.existsSync(envPath)) {
-    const existing = fs.readFileSync(envPath, "utf-8");
-    for (const line of existing.split("\n")) {
-      const match = line.match(/^([^#=]+)=(.*)$/);
-      if (match) {
-        envContent[match[1].trim()] = match[2].trim();
-      }
-    }
-  }
-  Object.assign(envContent, vars);
-  const output =
-    Object.entries(envContent)
-      .map(([k, v]) => `${k}=${v}`)
-      .join("\n") + "\n";
-  fs.writeFileSync(envPath, output);
+  const existing = fs.existsSync(envPath) ? fs.readFileSync(envPath, "utf-8") : "";
+  fs.writeFileSync(envPath, upsertEnv(existing, vars));
 }
 
 async function clearStuckNonces(deployer: Awaited<ReturnType<typeof hhEthers.getSigners>>[number]) {

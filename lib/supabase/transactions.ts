@@ -50,6 +50,8 @@ export class ReceiptNotVisibleError extends Error {
   }
 }
 
+// Sort amounts by the raw integer column: `amount_formatted` is text, so it would sort
+// "10" before "9". Both tokens use 8 decimals, so raw order is value order.
 export type SortColumn = "created_at" | "amount";
 export type SortDirection = "asc" | "desc";
 

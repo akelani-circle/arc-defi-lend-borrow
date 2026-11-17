@@ -23,6 +23,11 @@ import { injected } from "wagmi/connectors";
 export const WAGMI_POLLING_INTERVAL = 4_000;
 export const LIVE_STATE_REFETCH_INTERVAL = 5_000;
 
+// Base URL for transaction links. Optional; defaults to the Arc Testnet explorer.
+export const EXPLORER_URL = (
+  process.env.NEXT_PUBLIC_EXPLORER_URL || "https://explorer.testnet.arc.io"
+).replace(/\/$/, "");
+
 const alchemyRpcUrl =
   process.env.NEXT_PUBLIC_RPC_URL ||
   "https://rpc.testnet.arc.io";
@@ -43,7 +48,7 @@ export const arcTestnet: Chain = {
   blockExplorers: {
     default: {
       name: "ArcScan",
-      url: "https://testnet.arcscan.app",
+      url: EXPLORER_URL,
     },
   },
   testnet: true,

@@ -18,16 +18,19 @@
 
 import { type Address } from "viem";
 
+// `||`, not `??`: an empty `NEXT_PUBLIC_..._ADDRESS=` line (as in .env.example) must
+// fall back too, or the "contract not deployed" banner never shows.
+
 export const CIRBTC_ADDRESS: Address =
-  (process.env.NEXT_PUBLIC_CIRBTC_ADDRESS as Address) ??
+  (process.env.NEXT_PUBLIC_CIRBTC_ADDRESS as Address) ||
   "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF";
 
 export const USDC_ADDRESS: Address =
-  (process.env.NEXT_PUBLIC_USDC_ADDRESS as Address) ??
+  (process.env.NEXT_PUBLIC_USDC_ADDRESS as Address) ||
   "0x0000000000000000000000000000000000000000";
 
 export const LENDING_ADDRESS: Address =
-  (process.env.NEXT_PUBLIC_LENDING_ADDRESS as Address) ??
+  (process.env.NEXT_PUBLIC_LENDING_ADDRESS as Address) ||
   "0x0000000000000000000000000000000000000000";
 
 // cirBTC is the collateral token (8 decimals, fixed by Circle's deployment).

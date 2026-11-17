@@ -18,7 +18,7 @@
 
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useReadContracts } from "wagmi";
 import { parseUnits, formatUnits, type Address } from "viem";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,6 +40,7 @@ import {
   useRepayLoan,
 } from "@/hooks/lending/useLendingActions";
 import { ERC20_ABI } from "@/lib/contracts/abis/erc20";
+import { LIVE_STATE_REFETCH_INTERVAL } from "@/lib/wagmi";
 import {
   LENDING_ADDRESS,
   USDC_ADDRESS,
@@ -60,7 +61,10 @@ function useLendingBalances(userAddress: Address | undefined) {
     ],
     query: {
       enabled: !!userAddress && LENDING_ADDRESS !== "0x0000000000000000000000000000000000000000",
-      refetchInterval: 15_000,
+      // Same interval as the navbar balances, so tokens that arrive from outside the app
+      // (e.g. Circle's faucet) show up here as soon as they do there. The inputs clamp
+      // to this balance, so a stale value would silently cap a deposit at 0.
+      refetchInterval: LIVE_STATE_REFETCH_INTERVAL,
     },
   });
 
@@ -157,13 +161,9 @@ function CollateralPanel({
   const [depositAmount, setDepositAmount] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
 
-  const approveCirBtc = useApproveCirBtc();
-  const depositCollateral = useDepositCollateral();
-  const withdrawCollateral = useWithdrawCollateral();
-
-  useEffect(() => { if (depositCollateral.isSuccess) { setDepositAmount(""); onSuccess(); } }, [depositCollateral.isSuccess, onSuccess]);
-  useEffect(() => { if (withdrawCollateral.isSuccess) { setWithdrawAmount(""); onSuccess(); } }, [withdrawCollateral.isSuccess, onSuccess]);
-  useEffect(() => { if (approveCirBtc.isSuccess) onSuccess(); }, [approveCirBtc.isSuccess, onSuccess]);
+  const approveCirBtc = useApproveCirBtc(onSuccess);
+  const depositCollateral = useDepositCollateral(() => { setDepositAmount(""); onSuccess(); });
+  const withdrawCollateral = useWithdrawCollateral(() => { setWithdrawAmount(""); onSuccess(); });
 
   const depositBigInt = depositAmount ? parseUnits(depositAmount, COLLATERAL_DECIMALS) : 0n;
   const allowanceInsufficient =
@@ -330,12 +330,9 @@ function LoanPanel({
   const [borrowAmount, setBorrowAmount] = useState("");
   const [repayAmount, setRepayAmount] = useState("");
 
-  const approveUsdc = useApproveUsdcForLending();
-  const takeLoan = useTakeLoan();
-  const repayLoan = useRepayLoan();
-
-  useEffect(() => { if (takeLoan.isSuccess) { setBorrowAmount(""); onSuccess(); } }, [takeLoan.isSuccess, onSuccess]);
-  useEffect(() => { if (repayLoan.isSuccess) { setRepayAmount(""); onSuccess(); } }, [repayLoan.isSuccess, onSuccess]);
+  const approveUsdc = useApproveUsdcForLending(onSuccess);
+  const takeLoan = useTakeLoan(() => { setBorrowAmount(""); onSuccess(); });
+  const repayLoan = useRepayLoan(() => { setRepayAmount(""); onSuccess(); });
 
   const repayBigInt = repayAmount ? parseUnits(repayAmount, LOAN_DECIMALS) : 0n;
   const needsUsdcApproval = usdcAllowance !== undefined && repayBigInt > 0n && repayBigInt > usdcAllowance;
@@ -398,23 +395,22 @@ function LoanPanel({
                 Repay your existing loan before borrowing again.
               </p>
             ) : (
-              <>
-                <Button
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                  onClick={() => takeLoan.borrow(borrowAmount)}
-                  disabled={
-                    takeLoan.isPending ||
-                    takeLoan.isConfirming ||
-                    takeLoan.isSubmitted ||
-                    !borrowAmount ||
-                    parseFloat(borrowAmount) <= 0
-                  }
-                >
-                  {takeLoan.isPending || takeLoan.isConfirming || takeLoan.isSubmitted ? "Borrowing…" : "Borrow USDC"}
-                </Button>
-                <TxStatus {...takeLoan} />
-              </>
+              <Button
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => takeLoan.borrow(borrowAmount)}
+                disabled={
+                  takeLoan.isPending ||
+                  takeLoan.isConfirming ||
+                  takeLoan.isSubmitted ||
+                  !borrowAmount ||
+                  parseFloat(borrowAmount) <= 0
+                }
+              >
+                {takeLoan.isPending || takeLoan.isConfirming || takeLoan.isSubmitted ? "Borrowing…" : "Borrow USDC"}
+              </Button>
             )}
+            {/* Outside the branch: a successful borrow makes the loan active, which hides the button. */}
+            <TxStatus {...takeLoan} />
           </TabsContent>
 
           {/* Repay tab */}
@@ -455,23 +451,22 @@ function LoanPanel({
                 <TxStatus {...approveUsdc} />
               </>
             ) : (
-              <>
-                <Button
-                  className="w-full bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => repayLoan.repay(repayAmount)}
-                  disabled={
-                    repayLoan.isPending ||
-                    repayLoan.isConfirming ||
-                    repayLoan.isSubmitted ||
-                    !repayAmount ||
-                    parseFloat(repayAmount) <= 0
-                  }
-                >
-                  {repayLoan.isPending || repayLoan.isConfirming || repayLoan.isSubmitted ? "Repaying…" : "Repay USDC"}
-                </Button>
-                <TxStatus {...repayLoan} />
-              </>
+              <Button
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => repayLoan.repay(repayAmount)}
+                disabled={
+                  repayLoan.isPending ||
+                  repayLoan.isConfirming ||
+                  repayLoan.isSubmitted ||
+                  !repayAmount ||
+                  parseFloat(repayAmount) <= 0
+                }
+              >
+                {repayLoan.isPending || repayLoan.isConfirming || repayLoan.isSubmitted ? "Repaying…" : "Repay USDC"}
+              </Button>
             )}
+            {/* Outside the branch: a full repayment closes the loan, which hides the button. */}
+            <TxStatus {...repayLoan} />
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -623,7 +618,13 @@ export default function LendingPage() {
           <CardTitle className="text-base">How it works</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>1. <strong className="text-foreground">Get cirBTC</strong> — obtain cirBTC tokens to use as collateral.</p>
+          <p>
+            1. <strong className="text-foreground">Get cirBTC</strong> — request testnet cirBTC from{" "}
+            <a href="https://faucet.circle.com/" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+              Circle&apos;s faucet
+            </a>{" "}
+            (choose Arc Testnet and cirBTC).
+          </p>
           <p>2. <strong className="text-foreground">Deposit cirBTC</strong> — approve and deposit cirBTC as collateral into the lending pool.</p>
           <p>3. <strong className="text-foreground">Borrow USDC</strong> — borrow up to {state.collateralFactor !== undefined ? `${state.collateralFactor.toString()}%` : "50%"} of your collateral value in USDC.</p>
           <p>4. <strong className="text-foreground">Repay your loan</strong> — approve USDC and repay any portion; full repayment unlocks your collateral.</p>

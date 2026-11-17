@@ -40,3 +40,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI agent instructions that `next dev` writes when it detects a coding agent
+/AGENTS.md
+/CLAUDE.md
