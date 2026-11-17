@@ -23,7 +23,6 @@ import {
   useContext,
   useState,
   useCallback,
-  useEffect,
   type ReactNode,
 } from "react";
 import { type Address, type Hex, encodeFunctionData, parseGwei } from "viem";
@@ -36,6 +35,7 @@ import {
 import {
   toWebAuthnCredential,
   toCircleSmartAccount,
+  getUserOperationGasPrice,
   WebAuthnMode,
 } from "@circle-fin/modular-wallets-core";
 import { toWebAuthnAccount } from "viem/account-abstraction";
@@ -62,7 +62,12 @@ interface CircleBundlerClient {
     calls: { to: Hex; data: Hex; value?: bigint }[];
     paymaster: true;
   }) => Promise<Hex>;
-  waitForUserOperationReceipt: (args: { hash: Hex; timeout?: number }) => Promise<{ receipt: { transactionHash: Hex } }>;
+  // `success` is false when the UserOp was mined but its call reverted.
+  waitForUserOperationReceipt: (args: { hash: Hex; timeout?: number }) => Promise<{
+    success: boolean;
+    reason?: string;
+    receipt: { transactionHash: Hex };
+  }>;
 }
 
 interface WalletContextValue {
@@ -86,6 +91,35 @@ interface WalletContextValue {
 
 const WalletContext = createContext<WalletContextValue | null>(null);
 
+// Circle's quoted tip sometimes dips to ~1.1 gwei, and its bundler never mines
+// UserOps priced that low. Never tip less than this.
+export const MIN_USER_OPERATION_PRIORITY_FEE = parseGwei("5");
+
+/** Fees for a UserOp from one tier of Circle's gas price quote, with the tip floor applied. */
+export function userOperationFees(quote: { maxFeePerGas: string; maxPriorityFeePerGas: string }): {
+  maxFeePerGas: bigint;
+  maxPriorityFeePerGas: bigint;
+} {
+  const quotedTip = BigInt(quote.maxPriorityFeePerGas);
+  const maxPriorityFeePerGas =
+    quotedTip > MIN_USER_OPERATION_PRIORITY_FEE ? quotedTip : MIN_USER_OPERATION_PRIORITY_FEE;
+  const quotedMaxFee = BigInt(quote.maxFeePerGas);
+  // The max fee includes the tip, so it can never be below it.
+  const maxFeePerGas = quotedMaxFee > maxPriorityFeePerGas ? quotedMaxFee : maxPriorityFeePerGas;
+  return { maxFeePerGas, maxPriorityFeePerGas };
+}
+
+// Rehydrate the connected Circle UI from the cached address. This is display-only:
+// no toWebAuthnCredential call, so no passkey prompt on load or tab change. The
+// signer is minted lazily by ensureCircleSigner on first use. Runs as the lazy
+// initial state rather than in an effect; every consumer waits for mount before
+// rendering wallet state, so server and client markup still match.
+function readCachedCircleAddress(): Address | undefined {
+  if (typeof window === "undefined" || !isCircleConfigured()) return undefined;
+  const raw = localStorage.getItem(STORAGE_KEY);
+  return raw ? (JSON.parse(raw) as StoredCredential).address : undefined;
+}
+
 export function useWallet() {
   const ctx = useContext(WalletContext);
   if (!ctx) throw new Error("useWallet must be used within WalletProvider");
@@ -99,8 +133,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const connectors = useConnectors();
   const { mutate: wagmiDisconnect } = useDisconnect();
 
-  // Circle state
-  const [circleAddress, setCircleAddress] = useState<Address | undefined>();
+  // Circle state. The address is rehydrated from the cache on load (see
+  // readCachedCircleAddress), so a reload keeps the passkey session without a prompt.
+  const [circleAddress, setCircleAddress] = useState<Address | undefined>(readCachedCircleAddress);
   const [bundlerClient, setBundlerClient] = useState<CircleBundlerClient | null>(null);
   const [circleConnecting, setCircleConnecting] = useState(false);
   const [circleError, setCircleError] = useState<string | null>(null);
@@ -130,10 +165,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         transport: getModularTransport(),
         paymaster: true,
         userOperation: {
-          estimateFeesPerGas: async () => ({
-            maxFeePerGas: parseGwei("50"),
-            maxPriorityFeePerGas: parseGwei("2"),
-          }),
+          // Circle's bundler never includes UserOps priced below its own quote, so
+          // ask it for the current price instead of hard-coding one.
+          estimateFeesPerGas: async () => {
+            const { medium } = await getUserOperationGasPrice(getCirclePublicClient());
+            return userOperationFees(medium);
+          },
         },
       });
 
@@ -240,17 +277,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setCircleConnecting(false);
     }
   }, [bundlerClient, initCircleAccount]);
-
-  // Rehydrate the connected Circle UI from the cached address on mount. This is
-  // display-only: no toWebAuthnCredential call, so no passkey prompt on load or
-  // tab change. The signer is minted lazily by ensureCircleSigner on first use.
-  useEffect(() => {
-    if (!isCircleConfigured() || wagmiConnected) return;
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const stored = JSON.parse(raw) as StoredCredential;
-    if (stored.address) setCircleAddress((prev) => prev ?? stored.address);
-  }, [wagmiConnected]);
 
   const connectMetaMask = useCallback(() => {
     // Clear Circle state if active

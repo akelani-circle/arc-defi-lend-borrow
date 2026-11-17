@@ -31,13 +31,13 @@ contract LendingBorrowing is Ownable2Step, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     struct Loan {
-        uint256 amount;     // ARCT currently owed
-        uint256 collateral; // USDC locked when the loan was taken
+        uint256 amount;     // USDC currently owed
+        uint256 collateral; // cirBTC locked when the loan was taken
         bool isActive;
     }
 
-    IERC20 public immutable collateralToken; // USDC
-    IERC20 public immutable lendingToken;    // ARCT
+    IERC20 public immutable collateralToken; // cirBTC
+    IERC20 public immutable lendingToken;    // USDC
     uint256 public collateralFactor;         // percentage, e.g. 50 = 50%
 
     mapping(address => uint256) public collateralBalances;
@@ -68,7 +68,7 @@ contract LendingBorrowing is Ownable2Step, ReentrancyGuard {
 
     // ─── User actions ────────────────────────────────────────────────
 
-    /// @notice Deposit USDC as collateral. Requires prior ERC20 approval.
+    /// @notice Deposit cirBTC as collateral. Requires prior ERC20 approval.
     function depositCollateral(uint256 amount) external nonReentrant {
         require(amount > 0, "Amount must be > 0");
         _pull(collateralToken, msg.sender, amount);
@@ -76,7 +76,7 @@ contract LendingBorrowing is Ownable2Step, ReentrancyGuard {
         emit CollateralDeposited(msg.sender, amount);
     }
 
-    /// @notice Borrow ARCT against deposited USDC collateral.
+    /// @notice Borrow USDC against deposited cirBTC collateral.
     ///         Only one active loan per user at a time.
     function takeLoan(uint256 amount) external nonReentrant {
         require(amount > 0, "Amount must be > 0");
@@ -96,7 +96,7 @@ contract LendingBorrowing is Ownable2Step, ReentrancyGuard {
         emit LoanTaken(msg.sender, amount);
     }
 
-    /// @notice Repay ARCT loan (partially or fully). Requires prior ERC20 approval.
+    /// @notice Repay USDC loan (partially or fully). Requires prior ERC20 approval.
     function repayLoan(uint256 amount) external nonReentrant {
         require(amount > 0, "Amount must be > 0");
         Loan storage loan = loans[msg.sender];
@@ -114,7 +114,7 @@ contract LendingBorrowing is Ownable2Step, ReentrancyGuard {
         emit LoanRepaid(msg.sender, amount);
     }
 
-    /// @notice Withdraw USDC collateral that is not locked by an active loan.
+    /// @notice Withdraw cirBTC collateral that is not locked by an active loan.
     function withdrawCollateral(uint256 amount) external nonReentrant {
         require(amount > 0, "Amount must be > 0");
 
@@ -129,7 +129,7 @@ contract LendingBorrowing is Ownable2Step, ReentrancyGuard {
 
     // ─── Owner actions ───────────────────────────────────────────────
 
-    /// @notice Fund the lending pool with ARCT. Requires prior ERC20 approval.
+    /// @notice Fund the lending pool with USDC. Requires prior ERC20 approval.
     function fundPool(uint256 amount) external onlyOwner nonReentrant {
         require(amount > 0, "Amount must be > 0");
         _pull(lendingToken, msg.sender, amount);
@@ -145,19 +145,19 @@ contract LendingBorrowing is Ownable2Step, ReentrancyGuard {
 
     // ─── View helpers ────────────────────────────────────────────────
 
-    /// @notice Returns the maximum ARCT a user can currently borrow.
+    /// @notice Returns the maximum USDC a user can currently borrow.
     function maxBorrow(address user) external view returns (uint256) {
         if (loans[user].isActive) return 0;
         return (collateralBalances[user] * collateralFactor) / 100;
     }
 
-    /// @notice Returns the USDC collateral available to withdraw (not locked by a loan).
+    /// @notice Returns the cirBTC collateral available to withdraw (not locked by a loan).
     function availableCollateral(address user) external view returns (uint256) {
         uint256 locked = loans[user].isActive ? loans[user].collateral : 0;
         return collateralBalances[user] - locked;
     }
 
-    /// @notice Returns current ARCT liquidity in the pool.
+    /// @notice Returns current USDC liquidity in the pool.
     function poolLiquidity() external view returns (uint256) {
         return lendingToken.balanceOf(address(this));
     }

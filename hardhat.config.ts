@@ -22,7 +22,8 @@ import hardhatVerify from "@nomicfoundation/hardhat-verify";
 import hardhatNodeTestRunner from "@nomicfoundation/hardhat-node-test-runner";
 import * as dotenv from "dotenv";
 
-dotenv.config({ path: ".env.local" });
+// dotenv 17+ logs every load by default; keep Hardhat output clean.
+dotenv.config({ path: ".env.local", quiet: true });
 
 const accounts: string[] = (() => {
   let key = process.env.PRIVATE_KEY?.trim();
@@ -46,7 +47,7 @@ export default defineConfig({
   networks: {
     arcTestnet: {
       type: "http",
-      url: process.env.NEXT_PUBLIC_RPC_URL || "https://rpc.testnet.arc.network",
+      url: process.env.NEXT_PUBLIC_RPC_URL || "https://rpc.testnet.arc.io",
       accounts,
       chainId: 5042002,
     },
@@ -62,8 +63,8 @@ export default defineConfig({
       blockExplorers: {
         etherscan: {
           name: "ArcScan",
-          url: "https://testnet.arcscan.app",
-          apiUrl: "https://testnet.arcscan.app/api",
+          url: "https://explorer.testnet.arc.io",
+          apiUrl: "https://explorer.testnet.arc.io/api",
         },
       },
     },

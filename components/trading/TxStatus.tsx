@@ -19,6 +19,7 @@
 "use client";
 
 import { parseTxError } from "@/lib/errors";
+import { EXPLORER_URL } from "@/lib/wagmi";
 
 export interface TxStatusProps {
   isPending: boolean;
@@ -39,20 +40,23 @@ export function TxStatus({
 }: TxStatusProps) {
   if (isPending)
     return <p className="text-xs text-yellow-500">Confirm in wallet...</p>;
+
   if (isConfirming)
     return <p className="text-xs text-blue-500">Waiting for confirmation...</p>;
+
   if (isSubmitted)
     return (
       <p className="text-xs text-blue-400">
         Transaction submitted — the network is slow. It will confirm automatically; you can close this.
       </p>
     );
+
   if (isSuccess && hash) {
     return (
       <p className="text-xs text-green-500">
         Success!{" "}
         <a
-          href={`https://testnet.arcscan.app/tx/${hash}`}
+          href={`${EXPLORER_URL}/tx/${hash}`}
           target="_blank"
           rel="noopener noreferrer"
           className="underline"
@@ -62,14 +66,28 @@ export function TxStatus({
       </p>
     );
   }
+
   if (error) {
     const { title, detail } = parseTxError(error);
+
     return (
       <div className="rounded-md bg-red-500/10 px-2.5 py-1.5 text-xs text-red-500">
         <p className="font-medium">{title}</p>
         {detail && <p className="mt-0.5 text-red-400">{detail}</p>}
+        {/* A reverted transaction was still mined, so it has a hash worth inspecting. */}
+        {hash && (
+          <a
+            href={`${EXPLORER_URL}/tx/${hash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-0.5 inline-block underline"
+          >
+            View tx
+          </a>
+        )}
       </div>
     );
   }
+
   return null;
 }

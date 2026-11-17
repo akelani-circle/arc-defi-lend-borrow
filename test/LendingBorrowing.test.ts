@@ -1,17 +1,26 @@
 import { beforeEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { network } from "hardhat";
+import type { Contract, ContractRunner } from "ethers";
 
 const { ethers } = await network.getOrCreate();
+
+// ethers types `connect()` as returning a bare BaseContract, which drops the ABI
+// methods (`pool.connect(alice).takeLoan` would not type-check). Without generated
+// contract types, keep the dynamic Contract type through `connect()`.
+type Deployed = { connect(runner: ContractRunner | null): Deployed } & Contract;
+
+const deployContract = async (name: string, args: unknown[] = []) =>
+  (await ethers.deployContract(name, args)) as Deployed;
 
 const UNIT = 10n ** 8n; // both tokens use 8 decimals in this app
 const units = (n: number) => BigInt(n) * UNIT;
 
 async function deploy() {
   const [owner, alice, bob, carol] = await ethers.getSigners();
-  const collateral = await ethers.deployContract("TestnetERC20", ["cirBTC", "cirBTC", 8]);
-  const lending = await ethers.deployContract("TestnetERC20", ["USD Coin", "USDC", 8]);
-  const pool = await ethers.deployContract("LendingBorrowing", [
+  const collateral = await deployContract("TestnetERC20", ["cirBTC", "cirBTC", 8]);
+  const lending = await deployContract("TestnetERC20", ["USD Coin", "USDC", 8]);
+  const pool = await deployContract("LendingBorrowing", [
     await collateral.getAddress(),
     await lending.getAddress(),
     50,
@@ -49,12 +58,12 @@ describe("LendingBorrowing", () => {
     it("rejects zero addresses, a bad factor, and identical tokens", async () => {
       const a = await f.collateral.getAddress();
       const b = await f.lending.getAddress();
-      await reverts(ethers.deployContract("LendingBorrowing", [ethers.ZeroAddress, b, 50]), "Invalid collateral token");
-      await reverts(ethers.deployContract("LendingBorrowing", [a, ethers.ZeroAddress, 50]), "Invalid lending token");
-      await reverts(ethers.deployContract("LendingBorrowing", [a, b, 0]), "Factor must be 1-100");
-      await reverts(ethers.deployContract("LendingBorrowing", [a, b, 101]), "Factor must be 1-100");
+      await reverts(deployContract("LendingBorrowing", [ethers.ZeroAddress, b, 50]), "Invalid collateral token");
+      await reverts(deployContract("LendingBorrowing", [a, ethers.ZeroAddress, 50]), "Invalid lending token");
+      await reverts(deployContract("LendingBorrowing", [a, b, 0]), "Factor must be 1-100");
+      await reverts(deployContract("LendingBorrowing", [a, b, 101]), "Factor must be 1-100");
       // Same token on both sides would let borrowers take other people's collateral.
-      await reverts(ethers.deployContract("LendingBorrowing", [a, a, 50]), "Tokens must differ");
+      await reverts(deployContract("LendingBorrowing", [a, a, 50]), "Tokens must differ");
     });
   });
 
@@ -98,7 +107,7 @@ describe("LendingBorrowing", () => {
 
     it("cannot borrow more than the pool holds", async () => {
       const [owner] = await ethers.getSigners();
-      const small = await ethers.deployContract("LendingBorrowing", [
+      const small = await deployContract("LendingBorrowing", [
         await f.collateral.getAddress(),
         await f.lending.getAddress(),
         100,
@@ -228,9 +237,8 @@ describe("LendingBorrowing", () => {
     });
 
     it("has no way for the owner to take users' collateral", async () => {
-      const functions = f.pool.interface.fragments
-        .filter((fragment) => fragment.type === "function")
-        .map((fragment) => (fragment as { name: string }).name);
+      const functions: string[] = [];
+      f.pool.interface.forEachFunction((fn) => functions.push(fn.name));
       for (const name of functions) {
         assert.doesNotMatch(name, /^(rescue|sweep|emergency|drain|recover)/i);
       }
@@ -239,12 +247,12 @@ describe("LendingBorrowing", () => {
 
   describe("unsupported tokens", () => {
     async function poolWith(collateralAddress: string, lendingAddress: string) {
-      const p = await ethers.deployContract("LendingBorrowing", [collateralAddress, lendingAddress, 50]);
+      const p = await deployContract("LendingBorrowing", [collateralAddress, lendingAddress, 50]);
       return p;
     }
 
     it("rejects a fee-on-transfer collateral token instead of over-crediting deposits", async () => {
-      const fee = await ethers.deployContract("FeeOnTransferERC20");
+      const fee = await deployContract("FeeOnTransferERC20");
       const p = await poolWith(await fee.getAddress(), await f.lending.getAddress());
       await fee.mint(f.alice.address, units(100));
       await fee.connect(f.alice).approve(await p.getAddress(), ethers.MaxUint256);
@@ -254,7 +262,7 @@ describe("LendingBorrowing", () => {
     });
 
     it("rejects a fee-on-transfer lending token on repayment and funding", async () => {
-      const fee = await ethers.deployContract("FeeOnTransferERC20");
+      const fee = await deployContract("FeeOnTransferERC20");
       const p = await poolWith(await f.collateral.getAddress(), await fee.getAddress());
       await fee.mint(f.owner.address, units(100));
       await fee.approve(await p.getAddress(), ethers.MaxUint256);
@@ -264,8 +272,8 @@ describe("LendingBorrowing", () => {
 
   describe("reentrancy", () => {
     it("cannot re-enter depositCollateral from a token callback", async () => {
-      const evil = await ethers.deployContract("ReentrantERC20");
-      const p = await ethers.deployContract("LendingBorrowing", [await evil.getAddress(), await f.lending.getAddress(), 50]);
+      const evil = await deployContract("ReentrantERC20");
+      const p = await deployContract("LendingBorrowing", [await evil.getAddress(), await f.lending.getAddress(), 50]);
       await evil.mint(f.alice.address, units(100));
       await evil.connect(f.alice).approve(await p.getAddress(), ethers.MaxUint256);
       await evil.arm(await p.getAddress(), false);
@@ -275,8 +283,8 @@ describe("LendingBorrowing", () => {
     });
 
     it("cannot re-enter repayLoan from a token callback", async () => {
-      const evil = await ethers.deployContract("ReentrantERC20");
-      const p = await ethers.deployContract("LendingBorrowing", [await f.collateral.getAddress(), await evil.getAddress(), 50]);
+      const evil = await deployContract("ReentrantERC20");
+      const p = await deployContract("LendingBorrowing", [await f.collateral.getAddress(), await evil.getAddress(), 50]);
       const pAddress = await p.getAddress();
       await evil.mint(f.owner.address, units(1000));
       await evil.mint(f.alice.address, units(1000));

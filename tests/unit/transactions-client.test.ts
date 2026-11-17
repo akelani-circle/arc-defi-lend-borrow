@@ -98,4 +98,16 @@ describe("escapeLike / listTransactions", () => {
     expect(builder.eq).toHaveBeenCalledWith("wallet_address", "0xabc");
     expect(builder.ilike).toHaveBeenCalledWith("tx_hash", "%a\\%b%");
   });
+
+  it("sorts amounts by the numeric column, not the formatted text", async () => {
+    const builder: Record<string, ReturnType<typeof vi.fn>> = {};
+    for (const name of ["select", "eq", "ilike", "order", "range"]) builder[name] = vi.fn(() => builder);
+    (builder as unknown as { then: unknown }).then = (resolve: (v: unknown) => void) =>
+      resolve({ data: [], count: 0, error: null });
+    supabase.from.mockReturnValue(builder);
+
+    await listTransactions({ wallet: "0xabc", sortColumn: "amount", sortDirection: "asc", page: 0, pageSize: 10 });
+
+    expect(builder.order).toHaveBeenCalledWith("amount", { ascending: true });
+  });
 });

@@ -30,6 +30,7 @@
     "components/**/*.tsx",
     "hooks/**/*.ts",
     "lib/**/*.ts",
+    "tests/**/*.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "*.ts",

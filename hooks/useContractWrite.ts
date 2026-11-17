@@ -18,11 +18,12 @@
 
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { usePublicClient, useWriteContract } from "wagmi";
 import { type Abi, type Address, type Hex, encodeFunctionData } from "viem";
 import { useWallet } from "@/contexts/WalletContext";
 import { WAGMI_POLLING_INTERVAL } from "@/lib/wagmi";
+import { TransactionRevertedError } from "@/lib/transactions/revert";
 
 interface ContractWriteParams {
   address: Address;
@@ -31,8 +32,16 @@ interface ContractWriteParams {
   args?: readonly unknown[];
 }
 
-export function useContractWrite() {
+/**
+ * @param onSuccess Called once a write confirms without reverting. Use it to reset
+ *   inputs and refetch state, instead of watching `isSuccess` in an effect.
+ */
+export function useContractWrite(onSuccess?: () => void) {
   const { walletType, bundlerClient, ensureCircleSigner } = useWallet();
+  const onSuccessRef = useRef(onSuccess);
+  useEffect(() => {
+    onSuccessRef.current = onSuccess;
+  });
   const publicClient = usePublicClient();
   const { writeContractAsync } = useWriteContract();
 
@@ -99,7 +108,7 @@ export function useContractWrite() {
         const pollForReceipt = async () => {
           while (callIdRef.current === callId) {
             try {
-              const { receipt } = await client.waitForUserOperationReceipt({
+              const { success, reason, receipt } = await client.waitForUserOperationReceipt({
                 hash: userOpHash,
                 timeout: 60_000,
               });
@@ -107,7 +116,12 @@ export function useContractWrite() {
               setHash(receipt.transactionHash);
               setIsConfirming(false);
               setIsSubmitted(false);
-              setIsSuccess(true);
+              if (success) {
+                setIsSuccess(true);
+                onSuccessRef.current?.();
+              } else {
+                setError(new TransactionRevertedError(receipt.transactionHash, reason));
+              }
               return;
             } catch (err) {
               if (callIdRef.current !== callId) return;
@@ -153,7 +167,12 @@ export function useContractWrite() {
 
           setHash(receipt.transactionHash);
           setIsConfirming(false);
-          setIsSuccess(true);
+          if (receipt.status === "success") {
+            setIsSuccess(true);
+            onSuccessRef.current?.();
+          } else {
+            setError(new TransactionRevertedError(receipt.transactionHash));
+          }
         } catch (err) {
           setIsPending(false);
           setIsConfirming(false);
