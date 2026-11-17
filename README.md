@@ -18,7 +18,7 @@ A collateralized lending platform built on [Arc Testnet](https://www.arc.io/). U
 
 ## Prerequisites
 
-- **Node.js v22+ (required by Hardhat 3)** - Install via [nvm](https://github.com/nvm-sh/nvm)
+- **Node.js v22.12+ (required by Hardhat 3 and Vitest 5)** - Install via [nvm](https://github.com/nvm-sh/nvm)
 - **A wallet** - either:
   - **MetaMask** (or any injected EVM wallet) - connected to **Arc Testnet** (Chain ID `5042002`), or
   - **Circle Passkey Wallet** - browser-based biometric authentication via WebAuthn (no extension needed). Requires a [Circle developer account](https://console.circle.com/) for the client key and URL. A client key works on one domain only: for local use, set its **Allowed Domain** and the **Passkey Domain Name** to `localhost` ([console setup](https://developers.circle.com/wallets/modular/console-setup)), then open the app at `http://localhost:3000`, not `127.0.0.1` or a LAN IP.

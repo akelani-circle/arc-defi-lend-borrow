@@ -22,7 +22,8 @@ import hardhatVerify from "@nomicfoundation/hardhat-verify";
 import hardhatNodeTestRunner from "@nomicfoundation/hardhat-node-test-runner";
 import * as dotenv from "dotenv";
 
-dotenv.config({ path: ".env.local" });
+// dotenv 17+ logs every load by default; keep Hardhat output clean.
+dotenv.config({ path: ".env.local", quiet: true });
 
 const accounts: string[] = (() => {
   let key = process.env.PRIVATE_KEY?.trim();
